@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pong</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a2e;
+            font-family: 'Courier New', monospace;
+        }
+        .game-container {
+            text-align: center;
+        }
+        h1 {
+            color: #fff;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+        .score {
+            color: #fff;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        canvas {
+            border: 4px solid #fff;
+            border-radius: 4px;
+            display: block;
+            margin: 0 auto;
+        }
+        .instructions {
+            color: #888;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>PONG</h1>
+        <div class="score">
+            <span id="player-score">0</span> - <span id="cpu-score">0</span>
+        </div>
+        <canvas id="pong" width="800" height="500"></canvas>
+        <p class="instructions">Use &uarr; &darr; ou W/S para mover | ESPAÇO para pausar</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('pong');
+        const ctx = canvas.getContext('2d');
+
+        // Estado do jogo
+        let paused = false;
+        let gameOver = false;
+        const WINNING_SCORE = 7;
+
+        // Raquete do jogador
+        const player = {
+            x: 20,
+            y: canvas.height / 2 - 50,
+            width: 12,
+            height: 100,
+            speed: 8,
+            score: 0,
+            dy: 0
+        };
+
+        // Raquete do CPU
+        const cpu = {
+            x: canvas.width - 32,
+            y: canvas.height / 2 - 50,
+            width: 12,
+            height: 100,
+            speed: 4.5,
+            score: 0
+        };
+
+        // Bola
+        const ball = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 10,
+            speed: 6,
+            dx: 6,
+            dy: 4
+        };
+
+        // Controles
+        const keys = {
+            ArrowUp: false,
+            ArrowDown: false,
+            w: false,
+            s: false
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key in keys) {
+                keys[e.key] = true;
+                e.preventDefault();
+            }
+            if (e.key === ' ') {
+                paused = !paused;
+                e.preventDefault();
+            }
+            if (e.key === 'Enter' && gameOver) {
+                resetGame();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key in keys) {
+                keys[e.key] = false;
+            }
+        });
+
+        function resetBall(direction = 1) {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.speed = 6;
+            ball.dx = 6 * direction;
+            ball.dy = (Math.random() * 4 - 2);
+        }
+
+        function resetGame() {
+            player.score = 0;
+            cpu.score = 0;
+            gameOver = false;
+            paused = false;
+            updateScoreDisplay();
+            resetBall();
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('player-score').textContent = player.score;
+            document.getElementById('cpu-score').textContent = cpu.score;
+        }
+
+        function drawRect(x, y, w, h, color = '#fff') {
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, w, h);
+        }
+
+        function drawCircle(x, y, r, color = '#fff') {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawNet() {
+            ctx.setLineDash([15, 15]);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function draw() {
+            // Fundo
+            ctx.fillStyle = '#0f0f23';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Rede
+            drawNet();
+
+            // Raquetes
+            drawRect(player.x, player.y, player.width, player.height, '#00d4ff');
+            drawRect(cpu.x, cpu.y, cpu.width, cpu.height, '#ff6b6b');
+
+            // Bola
+            drawCircle(ball.x, ball.y, ball.radius, '#fff');
+
+            // Mensagens
+            if (paused && !gameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = '48px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText('PAUSADO', canvas.width / 2, canvas.height / 2);
+            }
+
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = '48px Courier New';
+                ctx.textAlign = 'center';
+
+                const winner = player.score >= WINNING_SCORE ? 'VOCÊ VENCEU!' : 'CPU VENCEU!';
+                ctx.fillText(winner, canvas.width / 2, canvas.height / 2 - 20);
+
+                ctx.font = '24px Courier New';
+                ctx.fillText('Pressione ENTER para jogar novamente', canvas.width / 2, canvas.height / 2 + 30);
+            }
+        }
+
+        function update() {
+            if (paused || gameOver) return;
+
+            // Movimento do jogador
+            if (keys.ArrowUp || keys.w) {
+                player.y -= player.speed;
+            }
+            if (keys.ArrowDown || keys.s) {
+                player.y += player.speed;
+            }
+
+            // Limites do jogador
+            player.y = Math.max(0, Math.min(canvas.height - player.height, player.y));
+
+            // IA do CPU
+            const cpuCenter = cpu.y + cpu.height / 2;
+            const targetY = ball.y;
+
+            if (ball.dx > 0) { 
+                // Bola vindo na direção do CPU
+                if (cpuCenter < targetY - 20) {
+                    cpu.y += cpu.speed;
+                } else if (cpuCenter > targetY + 20) {
+                    cpu.y -= cpu.speed;
+                }
+            } else {
+                // Volta para o centro quando a bola está longe
+                if (cpuCenter < canvas.height / 2 - 30) {
+                    cpu.y += cpu.speed * 0.5;
+                } else if (cpuCenter > canvas.height / 2 + 30) {
+                    cpu.y -= cpu.speed * 0.5;
+                }
+            }
+            cpu.y = Math.max(0, Math.min(canvas.height - cpu.height, cpu.y));
+
+            // Movimento da bola
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // Colisão com paredes superior/inferior
+            if (ball.y - ball.radius <= 0 || ball.y + ball.radius >= canvas.height) {
+                ball.dy *= -1;
+                ball.y = Math.max(ball.radius, Math.min(canvas.height - ball.radius, ball.y));
+            }
+
+            // Colisão com raquete do jogador
+            if (
+                ball.x - ball.radius <= player.x + player.width &&
+                ball.x + ball.radius >= player.x &&
+                ball.y >= player.y &&
+                ball.y <= player.y + player.height &&
+                ball.dx < 0
+            ) {
+                const hitPoint = (ball.y - (player.y + player.height / 2)) / (player.height / 2);
+                ball.dx = Math.abs(ball.dx) * 1.05;
+                ball.dy = hitPoint * 6;
+                ball.x = player.x + player.width + ball.radius;
+            }
+
+            // Colisão com raquete do CPU
+            if (
+                ball.x + ball.radius >= cpu.x &&
+                ball.x - ball.radius <= cpu.x + cpu.width &&
+                ball.y >= cpu.y &&
+                ball.y <= cpu.y + cpu.height &&
+                ball.dx > 0
+            ) {
+                const hitPoint = (ball.y - (cpu.y + cpu.height / 2)) / (cpu.height / 2);
+                ball.dx = -Math.abs(ball.dx) * 1.05;
+                ball.dy = hitPoint * 6;
+                ball.x = cpu.x - ball.radius;
+            }
+
+            // Limite de velocidade
+            const maxSpeed = 15;
+            ball.dx = Math.max(-maxSpeed, Math.min(maxSpeed, ball.dx));
+            ball.dy = Math.max(-maxSpeed, Math.min(maxSpeed, ball.dy));
+
+            // Pontuação
+            if (ball.x - ball.radius <= 0) {
+                cpu.score++;
+                updateScoreDisplay();
+                if (cpu.score >= WINNING_SCORE) {
+                    gameOver = true;
+                } else {
+                    resetBall(-1);
+                }
+            }
+
+            if (ball.x + ball.radius >= canvas.width) {
+                player.score++;
+                updateScoreDisplay();
+                if (player.score >= WINNING_SCORE) {
+                    gameOver = true;
+                } else {
+                    resetBall(1);
+                }
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Iniciar
+        gameLoop();
+    </script>
+</body>
+</html>
